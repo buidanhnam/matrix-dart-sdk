@@ -9,6 +9,7 @@ class PollEventContent {
     required this.pollStartContent,
   });
   static const String mTextJsonKey = 'org.matrix.msc1767.text';
+  static const String legacyStartType = 'm.poll.start';
   static const String startType = 'org.matrix.msc3381.poll.start';
   static const String responseType = 'org.matrix.msc3381.poll.response';
   static const String endType = 'org.matrix.msc3381.poll.end';
@@ -16,13 +17,29 @@ class PollEventContent {
   factory PollEventContent.fromJson(Map<String, dynamic> json) =>
       PollEventContent(
         mText: json[mTextJsonKey],
-        pollStartContent: PollStartContent.fromJson(json[startType]),
+        pollStartContent: PollStartContent.fromJson(
+          json[startType] ?? json[legacyStartType] ?? {},
+        ),
       );
 
-  Map<String, dynamic> toJson() => {
-        mTextJsonKey: mText,
-        startType: pollStartContent.toJson(),
-      };
+  Map<String, dynamic> toJson() {
+    final startJson = pollStartContent.toJson();
+    if (pollStartContent.expiresAt != null) {
+      startJson['expires_ts'] = pollStartContent.expiresAt;
+    }
+
+    return {
+      mTextJsonKey: mText,
+      // legacy key
+      legacyStartType: {
+        ...startJson,
+      },
+      // MSC3381 key
+      startType: {
+        ...startJson,
+      },
+    };
+  }
 }
 
 class PollStartContent {
@@ -30,12 +47,14 @@ class PollStartContent {
   final int maxSelections;
   final PollQuestion question;
   final List<PollAnswer> answers;
+  final int? expiresAt;
 
   const PollStartContent({
     this.kind,
     required this.maxSelections,
     required this.question,
     required this.answers,
+    this.expiresAt,
   });
 
   factory PollStartContent.fromJson(Map<String, dynamic> json) =>
@@ -47,6 +66,7 @@ class PollStartContent {
         answers: (json['answers'] as List)
             .map((i) => PollAnswer.fromJson(i))
             .toList(),
+        expiresAt: json['expires_ts'] as int?,
       );
 
   Map<String, dynamic> toJson() => {
