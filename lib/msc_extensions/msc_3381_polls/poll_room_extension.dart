@@ -8,6 +8,7 @@ extension PollRoomExtension on Room {
     PollKind kind = PollKind.undisclosed,
     int maxSelections = 1,
     String? txid,
+    int? expiresAt,
   }) async {
     if (answers.length > 20) {
       throw Exception('Client must not set more than 20 answers in a poll');
@@ -27,6 +28,7 @@ extension PollRoomExtension on Room {
         maxSelections: maxSelections,
         question: PollQuestion(mText: question),
         answers: answers,
+        expiresAt: expiresAt,
       ),
     );
 
