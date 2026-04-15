@@ -932,6 +932,75 @@ void main() {
       expect(nonDmRoom.directChatMatrixID, isNull);
     });
 
+    test('pending direct room is treated as direct before m.direct sync',
+        () async {
+      final maybeNonDmRoom = matrix.getRoomById('!calls:example.com');
+      if (maybeNonDmRoom == null) {
+        fail('Expected room !calls:example.com to exist');
+      }
+      final nonDmRoom = maybeNonDmRoom;
+      matrix.clearPendingDirectRoom(nonDmRoom.id);
+      expect(nonDmRoom.isDirectChat, false);
+      expect(nonDmRoom.directChatMatrixID, isNull);
+
+      matrix.markPendingDirectRoom(nonDmRoom.id, '@pending:example.com');
+
+      expect(matrix.isPendingDirectRoom(nonDmRoom.id), true);
+      expect(matrix.pendingDirectPeer(nonDmRoom.id), '@pending:example.com');
+      expect(nonDmRoom.isDirectChat, true);
+      expect(nonDmRoom.directChatMatrixID, '@pending:example.com');
+    });
+
+    test('strict direct mapping overrides and clears pending direct room',
+        () async {
+      final maybeNonDmRoom = matrix.getRoomById('!calls:example.com');
+      if (maybeNonDmRoom == null) {
+        fail('Expected room !calls:example.com to exist');
+      }
+      final nonDmRoom = maybeNonDmRoom;
+      matrix.clearPendingDirectRoom(nonDmRoom.id);
+      expect(nonDmRoom.isDirectChat, false);
+
+      matrix.markPendingDirectRoom(nonDmRoom.id, '@pending:example.com');
+      expect(nonDmRoom.directChatMatrixID, '@pending:example.com');
+      expect(matrix.isPendingDirectRoom(nonDmRoom.id), true);
+
+      await matrix.handleSync(
+        SyncUpdate.fromJson(
+          jsonDecode('''
+          {
+            "next_batch": "sync_dc3",
+            "account_data": {
+              "events": [{
+                "type": "m.direct",
+                "content": {"@alice:example.com": ["!calls:example.com"]}
+              }]
+            }
+          }
+        '''),
+        ),
+      );
+
+      expect(nonDmRoom.isDirectChat, true);
+      expect(nonDmRoom.directChatMatrixID, '@alice:example.com');
+      expect(matrix.isPendingDirectRoom(nonDmRoom.id), false);
+      expect(matrix.pendingDirectPeer(nonDmRoom.id), isNull);
+    });
+
+    test('pending direct helpers can clear room state', () async {
+      const roomId = '!pending:example.com';
+      expect(matrix.isPendingDirectRoom(roomId), false);
+      expect(matrix.pendingDirectPeer(roomId), isNull);
+
+      matrix.markPendingDirectRoom(roomId, '@alice:example.com');
+      expect(matrix.isPendingDirectRoom(roomId), true);
+      expect(matrix.pendingDirectPeer(roomId), '@alice:example.com');
+
+      matrix.clearPendingDirectRoom(roomId);
+      expect(matrix.isPendingDirectRoom(roomId), false);
+      expect(matrix.pendingDirectPeer(roomId), isNull);
+    });
+
     test('getTimeline', () async {
       final timeline = await room.getTimeline();
       expect(timeline.events.length, 17);

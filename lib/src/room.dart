@@ -350,23 +350,34 @@ class Room {
     if (cache != null) {
       final roomIds = client.directChats[cache];
       if (roomIds != null && roomIds.contains(id)) {
+        client.clearPendingDirectRoom(id);
         return cache;
       }
     }
 
+    String? strictMxId;
     if (membership == Membership.invite) {
       final userID = client.userID;
       if (userID == null) return null;
       final invitation = getState(EventTypes.RoomMember, userID);
       if (invitation != null && invitation.content['is_direct'] == true) {
-        return _cachedDirectChatMatrixId = invitation.senderId;
+        strictMxId = invitation.senderId;
       }
     }
 
-    final mxId = client.directChats.entries
+    strictMxId ??= client.directChats.entries
         .firstWhereOrNull((e) => e.value.contains(id))
         ?.key;
-    if (mxId?.isValidMatrixId == true) return _cachedDirectChatMatrixId = mxId;
+    if (strictMxId?.isValidMatrixId == true) {
+      client.clearPendingDirectRoom(id);
+      return _cachedDirectChatMatrixId = strictMxId;
+    }
+
+    final pendingMxId = client.pendingDirectPeer(id);
+    if (pendingMxId?.isValidMatrixId == true) {
+      return _cachedDirectChatMatrixId = pendingMxId;
+    }
+
     return _cachedDirectChatMatrixId = null;
   }
 
@@ -855,7 +866,6 @@ class Room {
     Map<String, dynamic>? extraContent,
     String? threadRootEventId,
     String? threadLastEventId,
-
     /// Displays an event in the timeline with the transaction ID as the event
     /// ID and a status of SENDING, SENT or ERROR until it gets replaced by
     /// the sync event. Using this can display a different sort order of events
@@ -1165,7 +1175,6 @@ class Room {
     String? editEventId,
     String? threadRootEventId,
     String? threadLastEventId,
-
     /// Displays an event in the timeline with the transaction ID as the event
     /// ID and a status of SENDING, SENT or ERROR until it gets replaced by
     /// the sync event. Using this can display a different sort order of events

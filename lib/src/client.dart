@@ -455,6 +455,23 @@ class Client extends MatrixApi {
         ),
       );
 
+  /// In-memory registry for rooms that should be treated as pending direct
+  /// chats before strict `m.direct`/`is_direct` data is available.
+  final Map<String, String> _pendingDirectRooms = {};
+
+  void markPendingDirectRoom(String roomId, String peerUserId) {
+    _pendingDirectRooms[roomId] = peerUserId;
+  }
+
+  void clearPendingDirectRoom(String roomId) {
+    _pendingDirectRooms.remove(roomId);
+  }
+
+  String? pendingDirectPeer(String roomId) => _pendingDirectRooms[roomId];
+
+  bool isPendingDirectRoom(String roomId) =>
+      _pendingDirectRooms.containsKey(roomId);
+
   /// Returns the first room ID from the store (the room with the latest event)
   /// which is a private chat with the user [userId].
   /// Returns null if there is none.
