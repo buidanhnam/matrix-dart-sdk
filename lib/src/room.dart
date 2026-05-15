@@ -799,6 +799,7 @@ class Room {
         getEmotePacks: () => getImagePacksFlat(ImagePackUsage.emoticon),
         getMention: getMention,
         convertLinebreaks: client.convertLinebreaksInFormatting,
+        enableLatex: client.enableLatexMarkdown,
       );
       // if the decoded html is the same as the body, there is no need in sending a formatted message
       if (HtmlUnescape().convert(html.replaceAll(RegExp(r'<br />\n?'), '\n')) !=
@@ -1785,6 +1786,21 @@ class Room {
           }
         }
       }
+    }
+
+    // Fetch poll responses for fragmented timelines after decryption so
+    // encrypted poll start events are visible as poll events.
+    if (eventContextId != null) {
+      await Future.wait(
+        chunk.events
+            .where((event) => event.type == PollEventContent.startType)
+            .map(
+              (event) => timeline.fetchAggregatedEvents(
+                event.eventId,
+                RelationshipTypes.reference,
+              ),
+            ),
+      );
     }
 
     return timeline;
