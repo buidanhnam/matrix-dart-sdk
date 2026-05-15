@@ -258,6 +258,9 @@ class Client extends MatrixApi {
       EventTypes.CallReject,
       EventTypes.CallHangup,
       EventTypes.GroupCallMember,
+      'org.matrix.msc3381.poll.start',
+      'org.matrix.msc3382.poll.start',
+      'm.poll.start',
     ]);
 
     // register all the default commands
