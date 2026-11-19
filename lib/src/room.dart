@@ -875,6 +875,11 @@ class Room {
     /// If true, skips the sequential sending queue. Use for batch sends where
     /// multiple events should be sent concurrently instead of one at a time.
     bool skipQueue = false,
+    /// Awaited after the file (and thumbnail) has been uploaded, right before
+    /// the message event is sent. Lets callers upload many files concurrently
+    /// while keeping the order of the message events (e.g. several albums:
+    /// an album's events are only sent after the previous album was sent).
+    Future<void> Function()? waitBeforeSend,
   }) async {
     txid ??= client.generateUniqueTransactionId();
     await client.database.storeFile(
@@ -949,6 +954,9 @@ class Room {
             customImageResizer: client.customImageResizer,
             nativeImplementations: client.nativeImplementations,
           );
+          // Upload the shrunk image, not the original: the event's `info`
+          // already describes the shrunk file.
+          uploadFile = file;
         }
 
         if (thumbnail != null && file.size < thumbnail.size) {
@@ -1077,6 +1085,7 @@ class Room {
       },
       if (extraContent != null) ...extraContent,
     };
+    await waitBeforeSend?.call();
     final eventId = await sendEvent(
       content,
       txid: txid,
@@ -1184,6 +1193,10 @@ class Room {
     /// If true, skips the sequential sending queue. Use for batch sends where
     /// multiple events should be sent concurrently instead of one at a time.
     bool skipQueue = false,
+    /// Awaited after the pending event is displayed and before it is queued
+    /// and sent, e.g. to keep the order of events sent together. The send
+    /// timeout starts after it.
+    Future<void> Function()? waitBeforeSend,
   }) async {
     // Create new transaction id
     final String messageID;
@@ -1289,6 +1302,7 @@ class Room {
     // even before the fake sync is called, so that the event constructor can check if the event is in the sending state
     sendingQueueEventsByTxId.add(messageID);
     if (displayPendingEvent) await _handleFakeSync(syncUpdate);
+    await waitBeforeSend?.call();
     Completer? completer;
     if (!skipQueue) {
       completer = Completer();
